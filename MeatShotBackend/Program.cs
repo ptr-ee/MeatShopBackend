@@ -5,44 +5,61 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1️⃣ Load configuration (appsettings.json)
+// 1️ Add CORS policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowAnyOrigin(); // TODO: Restrict in production
+    });
+});
+
+// 2️ Load configuration (appsettings.json)
 var configuration = builder.Configuration;
 
-// 2️⃣ Add DbContext (SQL Server)
+// 3️ Add DbContext (SQL Server)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
-// 3️⃣ Register Services (DI)
+// 4️ Register Services (DI)
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMeatService, MeatService>();
 builder.Services.AddScoped<IShopService, ShopService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<ISalesService, SalesService>();
 
-// 4️⃣ AutoMapper (if using it)
+// 5️ AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 
-// 5️⃣ Add Controllers
+// 6️ Add Controllers
 builder.Services.AddControllers();
 
-// 6️⃣ Add Swagger (Recommended during development)
+// 7️ Add Swagger (Recommended during development)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 7️⃣ Use Swagger (only in development, remove for prod)
+// 8️ Enable Swagger UI (development only)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// 8️⃣ Custom JWT Middleware (replaces UseAuthentication)
+// 9️ Enable CORS BEFORE JWT Middleware
+app.UseCors("AllowAll");
+
+// 10 Add Custom JWT Middleware
 app.UseMiddleware<JwtMiddleware>();
 
-// 9️⃣ Map Controllers
+// 1️1️ Use Authorization if any controllers require [Authorize]
+app.UseAuthorization();
+
+// 1️2️ Map Controllers
 app.MapControllers();
 
-// 🔟 Run app
+// 1️3️ Run app
 app.Run();
