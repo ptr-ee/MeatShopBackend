@@ -1,5 +1,7 @@
-﻿using MeatShotBackend.Services;
-using MeatShotBackend.DTOs;
+﻿using MeatShotBackend.DTOs;
+using MeatShotBackend.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MeatShotBackend.Controllers
@@ -13,7 +15,7 @@ namespace MeatShotBackend.Controllers
 
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest req)
+        public async Task<IActionResult> Login([FromBody] DTOs.LoginRequest req)
         {
             var res = await _auth.AuthenticateAsync(req);
             if (res == null) return Unauthorized();
@@ -21,11 +23,11 @@ namespace MeatShotBackend.Controllers
         }
 
 
-        // For initial setup only - admin should manage users later in UI
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] LoginRequest req)
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Register([FromBody] DTOs.RegisterRequest req)
         {
-            var user = await _auth.CreateUserAsync(req.Username, req.Password, req.Username, "Admin", null);
+            var user = await _auth.CreateUserAsync(req.Username, req.Password, req.FullName, "Cashier", null);
             return Ok(new { user.Id, user.Username });
         }
     }

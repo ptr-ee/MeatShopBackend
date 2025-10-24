@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<ShopMeat> ShopMeats => Set<ShopMeat>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<SaleItem> SaleItems => Set<SaleItem>();
+    public DbSet<ShopBill> ShopBills { get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -50,5 +51,14 @@ public class AppDbContext : DbContext
         .HasOne(si => si.Meat)
         .WithMany()
         .HasForeignKey(si => si.MeatId);
+
+        modelBuilder.Entity<ShopBill>()
+        .Property(x => x.Amount)
+        .HasColumnType("decimal(10,2)");
+
+        modelBuilder.Entity<ShopBill>()
+            .HasOne(sb => sb.Shop)
+            .WithMany(s => s.ShopBills)
+            .HasForeignKey(sb => sb.ShopId);
     }
 }

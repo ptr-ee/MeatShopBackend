@@ -1,7 +1,10 @@
 ﻿using MeatShotBackend.Data;
-using MeatShotBackend.Services;
 using MeatShotBackend.Middleware;
+using MeatShotBackend.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,37 +32,84 @@ builder.Services.AddScoped<IMeatService, MeatService>();
 builder.Services.AddScoped<IShopService, ShopService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<ISalesService, SalesService>();
+builder.Services.AddScoped<IShopBillService, ShopBillService>();
 
 // 5️ AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 
-// 6️ Add Controllers
+// 6 Add Authentication + JWT
+var jwt = configuration.GetSection("Jwt");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false; // Set true in production with HTTPS
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"])),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidIssuer = jwt["Issuer"],
+            ValidAudience = jwt["Audience"],
+            ClockSkew = TimeSpan.Zero // No delay on token expiration
+        };
+    });
+
+// 7 Add Controllers
 builder.Services.AddControllers();
 
-// 7️ Add Swagger (Recommended during development)
+// 78 Add Swagger (Recommended during development)
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Please enter a valid JWT with Bearer prefix",
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+
 
 var app = builder.Build();
 
-// 8️ Enable Swagger UI (development only)
+// 9 Enable Swagger UI (development only)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// 9️ Enable CORS BEFORE JWT Middleware
+// 10 Enable CORS BEFORE JWT Middleware
 app.UseCors("AllowAll");
 
-// 10 Add Custom JWT Middleware
-app.UseMiddleware<JwtMiddleware>();
+// 11 Add Custom JWT Middleware
+//app.UseMiddleware<JwtMiddleware>();
 
-// 1️1️ Use Authorization if any controllers require [Authorize]
+// 1️2 Standard authentication pipeline
+app.UseAuthentication();
 app.UseAuthorization();
 
-// 1️2️ Map Controllers
+// 1️3 Map Controllers
 app.MapControllers();
 
-// 1️3️ Run app
+// 1️4 Run app
 app.Run();
